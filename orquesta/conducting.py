@@ -289,6 +289,13 @@ class WorkflowConductor(object):
             'output': self.get_workflow_output()
         }
 
+    try:
+
+        from eglomOrquesta import orquestaCache
+        serialize = orquestaCache.cacheSerialize(serialize)
+    except Exception as e:
+        pass
+
     @classmethod
     def deserialize(cls, data):
         spec_module = spec_loader.get_spec_module(data['spec']['catalog'])
@@ -347,14 +354,26 @@ class WorkflowConductor(object):
                 self._workflow_state.routes.append([])
 
                 # Identify the starting tasks and set the pointer to the initial context entry.
-                for task_node in self.graph.roots:
-                    ctxs, route = [0], 0
-                    self._workflow_state.add_staged_task(
-                        task_node['id'],
-                        route,
-                        ctxs=ctxs,
-                        ready=True
-                    )
+                if 'lom_context' in self.spec.spec['input']:
+                    self._workflow_state.staged = []
+                    self._workflow_state.staged.append({
+                        "ready": True,
+                        "route": 0,
+                        "prev": {},
+                        "ctxs": {
+                            "in": [0]
+                        },
+                        "id": "Start"
+                    })
+                else:
+                    for task_node in self.graph.roots:
+                        ctxs, route = [0], 0
+                        self._workflow_state.add_staged_task(
+                            task_node['id'],
+                            route,
+                            ctxs=ctxs,
+                            ready=True
+                        )
 
         return self._workflow_state
 
@@ -536,13 +555,13 @@ class WorkflowConductor(object):
                 continue
 
             prev_task_transition_id = (
-                constants.TASK_STATE_TRANSITION_FORMAT %
-                (prev_transition[1], str(prev_transition[2]))
+                    constants.TASK_STATE_TRANSITION_FORMAT %
+                    (prev_transition[1], str(prev_transition[2]))
             )
 
             satisfied = (
-                prev_task_transition_id in prev_task_state_entry['next'] and
-                prev_task_state_entry['next'][prev_task_transition_id]
+                    prev_task_transition_id in prev_task_state_entry['next'] and
+                    prev_task_state_entry['next'][prev_task_transition_id]
             )
 
             if not bool(inbound_evaluation[prev_transition[0]]):
@@ -651,8 +670,8 @@ class WorkflowConductor(object):
             for next_seq in outbounds:
                 next_task_id, seq_key = next_seq[1], next_seq[2]
                 task_transition_id = (
-                    constants.TASK_STATE_TRANSITION_FORMAT %
-                    (next_task_id, str(seq_key))
+                        constants.TASK_STATE_TRANSITION_FORMAT %
+                        (next_task_id, str(seq_key))
                 )
 
                 # Ignore if the next task is the engine command to "continue".
@@ -943,8 +962,8 @@ class WorkflowConductor(object):
             # Iterate thru each outbound task transitions.
             for task_transition in task_transitions:
                 task_transition_id = (
-                    constants.TASK_STATE_TRANSITION_FORMAT %
-                    (task_transition[1], str(task_transition[2]))
+                        constants.TASK_STATE_TRANSITION_FORMAT %
+                        (task_transition[1], str(task_transition[2]))
                 )
 
                 # Evaluate the criteria for task transition. If there is a failure while
@@ -1000,8 +1019,8 @@ class WorkflowConductor(object):
                     )
 
                     backref = (
-                        constants.TASK_STATE_TRANSITION_FORMAT %
-                        (task_id, str(task_transition[2]))
+                            constants.TASK_STATE_TRANSITION_FORMAT %
+                            (task_id, str(task_transition[2]))
                     )
 
                     # If the next task is already staged.
@@ -1030,8 +1049,8 @@ class WorkflowConductor(object):
                     # Check if inbound criteria are met. Must use the original route
                     # to identify the inbound task transitions.
                     staged_next_task['ready'] = (
-                        self.get_inbound_criteria_status(next_task_id, route) ==
-                        constants.INBOUND_CRITERIA_SATISFIED
+                            self.get_inbound_criteria_status(next_task_id, route) ==
+                            constants.INBOUND_CRITERIA_SATISFIED
                     )
 
                     # Put the next task in the engine event queue if it is an engine command.
@@ -1081,8 +1100,8 @@ class WorkflowConductor(object):
         task_id = task_transition[1]
 
         prev_task_transition_id = (
-            constants.TASK_STATE_TRANSITION_FORMAT %
-            (task_transition[0], str(task_transition[2]))
+                constants.TASK_STATE_TRANSITION_FORMAT %
+                (task_transition[0], str(task_transition[2]))
         )
 
         is_split_task = self.spec.tasks.is_split_task(task_id)
